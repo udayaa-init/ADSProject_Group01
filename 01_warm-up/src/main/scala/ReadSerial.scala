@@ -17,9 +17,21 @@ class Controller extends Module{
     /* 
      * TODO: Define IO ports of a the component as stated in the documentation
      */
+     val rxd = Input(UInt(1.W))
+    val reset = Input(UInt(1.W))
+    val cnt_s = Input(UInt(1.W))
+    val cnt_en = Output(UInt(1.W))
+    val shift_en = Output(UInt(1.W))
+    val valid = Output(UInt(1.W))
     })
 
   // internal variables
+  val sIdle :: sStart :: sReceive :: Nil = Enum(3)
+  val state = RegInit(sIdle)
+  
+  io.cnt_en := 0.U
+  io.shift_en := 0.U
+  io.valid := 0.U
   /* 
    * TODO: Define internal variables (registers and/or wires), if needed
    */
@@ -28,6 +40,30 @@ class Controller extends Module{
   /* 
    * TODO: Describe functionality if the controller as a state machine
    */
+   switch(state) {
+    is(sIdle) {
+       when(io.reset === 1.U) {
+        state := sIdle
+      }.elsewhen(io.rxd === 0.U) { // Start bit detected
+        state := sStart
+      }
+    }
+    is(sStart) {
+      io.cnt_en := 1.U
+      io.shift_en := 1.U
+      state := sReceive
+    }
+    is(sReceive) {
+      when(io.reset === 1.U) {
+        state := sIdle
+      }.elsewhen(io.cnt_s === 1.U) { // When 8 bits received
+        io.cnt_en := 0.U
+        io.valid := 1.U
+        io.shift_en := 0.U
+        state := sIdle
+      }
+    }
+  }
 
 }
 
@@ -39,17 +75,27 @@ class Counter extends Module{
     /* 
      * TODO: Define IO ports of a the component as stated in the documentation
      */
+    val cnt_en = Input(UInt(1.W))
+    val cnt_s = Output(UInt(1.W))
     })
 
   // internal variables
   /* 
    * TODO: Define internal variables (registers and/or wires), if needed
    */
+  val counter = RegInit(0.U(8.W))
+  io.cnt_s := (counter === (8 - 1).U)
 
   // state machine
   /* 
    * TODO: Describe functionality if the counter as a state machine
    */
+  
+  when(io.cnt_en === 1.U) {
+    counter := counter + 1.U
+  }.otherwise {
+    counter := 0.U
+  }
 
 
 }
@@ -61,17 +107,26 @@ class ShiftRegister extends Module{
     /* 
      * TODO: Define IO ports of a the component as stated in the documentation
      */
+    val in = Input(UInt(1.W))
+    val load = Input(UInt(1.W))
+    val out = Output(UInt(8.W))
     })
 
   // internal variables
   /* 
    * TODO: Define internal variables (registers and/or wires), if needed
    */
+  val reg = RegInit(0.U(8.W))
 
   // functionality
   /* 
    * TODO: Describe functionality if the shift register
    */
+  when(io.load === 1.U) {
+    reg := Cat(io.in, reg(8-1, 1))
+  }
+
+  io.out := reg
 }
 
 /** 
@@ -91,6 +146,10 @@ class ReadSerial extends Module{
     /* 
      * TODO: Define IO ports of a the component as stated in the documentation
      */
+    val rxd = Input(UInt(1.W))          // Serial input line
+    val reset = Input(UInt(1.W))        // Reset signal
+    val dataOut = Output(UInt(8.W))     // 8-bit data output
+    val valid = Output(UInt(1.W))       // Valid output signal
     })
 
 
@@ -98,15 +157,23 @@ class ReadSerial extends Module{
   /* 
    * TODO: Instanciate the modules that you need
    */
-
+  val controller = Module(new Controller())
+  val counter = Module(new Counter())
+  val shiftReg = Module(new ShiftRegister())
   // connections between modules
   /* 
    * TODO: connect the signals between the modules
    */
-
+  controller.io.rxd := io.rxd
+  controller.io.reset := io.reset
+  counter.io.cnt_en := controller.io.cnt_en
+  controller.io.cnt_s :=counter.io.cnt_s
+  shiftReg.io.load := controller.io.shift_en
+  shiftReg.io.in := io.rxd
+  io.dataOut := shiftReg.io.out
   // global I/O 
   /* 
    * TODO: Describe output behaviour based on the input values and the internal signals
    */
-
+  io.valid := controller.io.valid
 }
