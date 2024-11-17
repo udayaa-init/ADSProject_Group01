@@ -28,8 +28,28 @@ class FullAdderTester extends AnyFlatSpec with ChiselScalatestTester {
            *...
            *TODO: Insert your test cases
            */
+          for (a <- 0 to 1)
+          { // Loop over all possible values for 'a'
+          for (b <- 0 to 1) 
+            { // Loop over all possible values for 'b'
+            for (cin <- 0 to 1)
+             { // Loop over all possible values for 'cin'
+            val expectedSum = (a ^ b ^ cin) // XOR operation gives sum
+            val expectedCout = (a & b) | (b & cin) | (a & cin) // Logic for carry-out
 
+            dut.io.a.poke(a.U)
+            dut.io.b.poke(b.U)
+            dut.io.cin.poke(cin.U)
+            dut.clock.step(1) // Evaluate combinational logic
+
+            // Validate results
+            dut.io.s.expect(expectedSum.U)
+            dut.io.cout.expect(expectedCout.U)
+            }
+          }
         }
+
+      }
     } 
 }
 
