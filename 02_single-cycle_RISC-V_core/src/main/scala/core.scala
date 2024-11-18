@@ -77,7 +77,9 @@ class RV32Icore (BinaryFile: String) extends Module {
   /*
    * TODO: hard-wire register x0 to zero
    */
-
+  regFile.write(0.U,0.U)
+  val x0 = Wire(UInt(32.W))
+  x0 := regFile.read(0.U) // regFile(0.U)
   // -----------------------------------------
   // Fetch
   // -----------------------------------------
@@ -90,9 +92,17 @@ class RV32Icore (BinaryFile: String) extends Module {
   // -----------------------------------------
 
   val opcode = instr(6, 0)
+
+  // debug purpose printf("The opcode is %b", opcode) // sbt test
   /*
    * TODO: Add missing fields from fetched instructions for decoding
    */
+  val funct3 = instr(3,12)  // from pdf pg no. 16
+  val funct3 = instr(7,25)
+  val operandA = instr(5,15)
+  val operandA = instr(5,20)
+
+
 
   val isADD  = (opcode === "b0110011".U && funct3 === "b000".U && funct7 === "b0000000".U)
   /*
