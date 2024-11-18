@@ -72,7 +72,7 @@ class RV32Icore (BinaryFile: String) extends Module {
   /*
    * TODO: Implement the program counter as a register, initialize with zero
    */
-
+  val PC = RegInit(0.U(32.W))
   val regFile = Mem(32, UInt(32.W))
   /*
    * TODO: hard-wire register x0 to zero
@@ -97,12 +97,12 @@ class RV32Icore (BinaryFile: String) extends Module {
   /*
    * TODO: Add missing fields from fetched instructions for decoding
    */
-  val funct3 = instr(3,12)  // from pdf pg no. 16
-  val funct3 = instr(7,25)
-  val operandA = instr(5,15)
-  val operandA = instr(5,20)
-
-
+  val funct3 = instr(14,12)  // from pdf pg no. 16 instr(High, low)
+  val funct7 = instr(31,25)
+  val operandA = instr(19,15)
+  val operandB = instr(24,20)
+  //printf("the value Ais %b",operandA )
+  //printf("the value B is %d",operandB )
 
   val isADD  = (opcode === "b0110011".U && funct3 === "b000".U && funct7 === "b0000000".U)
   /*
@@ -124,7 +124,7 @@ class RV32Icore (BinaryFile: String) extends Module {
   // -----------------------------------------
 
   val aluResult = Wire(UInt(32.W)) 
-
+  //aluResult := 0.U uncomment this to see printf result
   when(isADDI) { 
     aluResult := operandA + operandB 
   }.elsewhen(isADD) {                           
@@ -147,8 +147,8 @@ class RV32Icore (BinaryFile: String) extends Module {
   // Write Back 
   // -----------------------------------------
 
-  val writeBackData = Wire(UInt(32.W)) 
-  writeBackData := aluResult
+  val writeBackData = Wire(UInt(32.W))  // comment this to see printf result
+  writeBackData := aluResult // comment this to see printf result
 
   /*
    * TODO: Store "writeBackData" in register "rd" in regFile
