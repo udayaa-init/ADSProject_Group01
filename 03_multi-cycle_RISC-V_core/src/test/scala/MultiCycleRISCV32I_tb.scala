@@ -19,7 +19,14 @@ class MultiCycleRISCV32ITest extends AnyFlatSpec with ChiselScalatestTester {
         /* 
          * TODO: Insert testcases from assignment 2 and adapt them for the multi-cycle core
          */
-           
+        
+      dut.clock.setTimeout(0)
+
+      // Simulate for 20 clock cycles
+      for (cycle <- 0 until 20) {
+        dut.clock.step(1)  // Advance by 1 clock cycle
+      }
+                 
     }
   }
 }
