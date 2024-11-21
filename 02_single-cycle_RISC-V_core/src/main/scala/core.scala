@@ -99,8 +99,6 @@ class RV32Icore (BinaryFile: String) extends Module {
    */
   val funct3 = instr(14,12)  // from pdf pg no. 16 instr(High, low)
   val funct7 = instr(31,25)
-  val operandA = instr(19,15)
-  val operandB = instr(24,20)
   //printf("the value Ais %b",operandA )
   //printf("the value B is %d",operandB )
 
@@ -108,6 +106,14 @@ class RV32Icore (BinaryFile: String) extends Module {
   /*
    * TODO: Add missing R-Type instructions here
    */
+  val isSUB  = (opcode === "b0110011".U && funct3 === "b000".U && funct7 === "b0100000".U)
+  val isXOR  = (opcode === "b0110011".U && funct3 === "b100".U && funct7 === "b0000000".U)
+  val isOR   = (opcode === "b0110011".U && funct3 === "b110".U && funct7 === "b0000000".U)
+  val isAND  = (opcode === "b0110011".U && funct3 === "b111".U && funct7 === "b0000000".U)
+  val isSLL  = (opcode === "b0110011".U && funct3 === "b001".U && funct7 === "b0000000".U)
+  val isSRL  = (opcode === "b0110011".U && funct3 === "b101".U && funct7 === "b0000000".U)
+  val isSRA  = (opcode === "b0110011".U && funct3 === "b101".U && funct7 === "b0100000".U)
+  val isSLT  = (opcode === "b0110011".U && funct3 === "b010".U && funct7 === "b0000000".U)
 
 
   val isADDI = (opcode === "b0010011".U && funct3 === "b000".U)
@@ -118,23 +124,55 @@ class RV32Icore (BinaryFile: String) extends Module {
    /*
    * TODO: Add operand signals accoring to specification
    */
-
+  val operandA = Wire(UInt(32.W)) 
+  operandA := regFile.read(instr(19,15))
+  val operandB = Wire(UInt(32.W)) 
+  when(isADDI){
+    val extendedValue = instr(31, 20)
+    operandB := extendedValue.asSInt.asUInt()
+   // printf("THe extendedValue is %d \n",operandB)
+  }.otherwise{
+    operandB := regFile.read(instr(24,20))
+  }
   // -----------------------------------------
   // Execute
   // -----------------------------------------
 
   val aluResult = Wire(UInt(32.W)) 
-  //aluResult := 0.U uncomment this to see printf result
-  when(isADDI) { 
-    aluResult := operandA + operandB 
-  }.elsewhen(isADD) {                           
-    aluResult := operandA + operandB 
-  }
+  aluResult := 0.U //uncomment this to see printf result
+//   when(isADDI) { 
+//     aluResult := operandA + operandB 
+//     //printf("THe output is %d \n",aluResult)
+//   }.elsewhen(isADD) {                           
+//     aluResult := operandA + operandB 
+//   }
   /*
    * TODO: Add missing R-Type instructions here. Do not forget to implement a suitable default case for
    *       fetched instructions that are neither R-Type nor ADDI. 
    */
-
+  when(isADDI) { 
+    aluResult := operandA + operandB 
+  }.elsewhen(isADD) {                           
+    aluResult := operandA + operandB 
+  }.elsewhen(isSUB) {
+    aluResult := operandA - operandB
+  }.elsewhen(isXOR) {
+    aluResult := operandA ^ operandB
+  }.elsewhen(isOR) {
+    aluResult := operandA | operandB
+  }.elsewhen(isAND) {
+    aluResult := operandA & operandB
+  }.elsewhen(isSLL) {
+    aluResult := operandA << operandB(4, 0) 
+  }.elsewhen(isSRL) {
+    aluResult := operandA >> operandB(4, 0) 
+  }.elsewhen(isSRA) {
+    aluResult := (operandA.asSInt >> operandB(4, 0)).asUInt 
+  }.elsewhen(isSLT) {
+    aluResult := (operandA.asSInt < operandB.asSInt).asUInt 
+  }.otherwise {
+    aluResult := 0.U // Default value if no operation 
+  }
 
   // -----------------------------------------
   // Memory
@@ -153,17 +191,20 @@ class RV32Icore (BinaryFile: String) extends Module {
   /*
    * TODO: Store "writeBackData" in register "rd" in regFile
    */
-
+  regFile.write(instr(11,7),writeBackData)
   // Check Result
   /*
    * TODO: Propagate "writeBackData" to the "check_res" output for testing purposes
    */
-  io.check_res := 0.U
+  io.check_res := writeBackData
 
   // Update PC
   // no jumps or branches, next PC always reads next address from IMEM
   /*
    * TODO: Increment PC
    */
+   PC := PC + 4.U
+   //printf("The aluResult is %d \n", aluResult )
+   //printf("The PC is %d \n", PC )
 
 }
