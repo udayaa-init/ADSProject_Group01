@@ -2,7 +2,10 @@
 00400093 // ADDI x1, x0, 4
 00500113 // ADDI x2, x0, 5
 002081b3 // ADD x3, x1, x2
-
-/* 
- * TODO: Add testcases for all R-type instructions in 'BinaryFile' and check the expected results here
- */
+40208233 // SUB x4, x1, x2
+002082b3 // AND x5, x1, x2
+00208333 // OR x6, x1, x2
+002083b3 // XOR x7, x1, x2
+00209133 // SLL x8, x1, x2
+002091b3 // SRL x9, x1, x2
+402091b3 // SRA x10, x1, x2
