@@ -177,3 +177,4 @@ class ReadSerial extends Module{
    */
   io.valid := controller.io.valid
 }
+
