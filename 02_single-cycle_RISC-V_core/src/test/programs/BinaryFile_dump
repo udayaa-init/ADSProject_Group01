@@ -1,7 +1,7 @@
-00000013 // ADDI x0, x0, 0 | NOP
-00400093 // ADDI x1, x0, 4
-00500113 // ADDI x2, x0, 5
-002081b3 // ADD x3, x1, x2
+00000013 // ADDI x0, x0, 0 | NOP  || 13 = 0001 0011
+00400093 // ADDI x1, x0, 4        || 93 = 1001 0011
+00500113 // ADDI x2, x0, 5        || 113 = 0001  0001  0011
+002081b3 // ADD x3, x1, x2        || 1b3 = 0001  1001  0011
 
 /* 
  * TODO: Add testcases for all R-type instructions in 'BinaryFile' and check the expected results here
