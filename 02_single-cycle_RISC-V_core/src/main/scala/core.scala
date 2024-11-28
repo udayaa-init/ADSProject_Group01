@@ -208,3 +208,4 @@ class RV32Icore (BinaryFile: String) extends Module {
    //printf("The PC is %d \n", PC )
 
 }
+
