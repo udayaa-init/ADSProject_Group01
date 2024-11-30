@@ -33,6 +33,7 @@ class SimpleRISCV32ITest extends AnyFlatSpec with ChiselScalatestTester {
       dut.io.result.expect("hFFFFFFFF".U) */
 
       // SUB x4, x1, x2: x4 = x1 - x2 = 4 - 5 = -1 (two's complement: 0xFFFFFFFF)
+      dut.clock.step(1)
       dut.io.result.expect("hFFFFFFFF".U)
       dut.clock.step(1)
 
