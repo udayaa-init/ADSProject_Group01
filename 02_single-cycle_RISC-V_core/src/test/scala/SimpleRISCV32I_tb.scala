@@ -25,13 +25,13 @@ class SimpleRISCV32ITest extends AnyFlatSpec with ChiselScalatestTester {
       dut.io.result.expect(5.U)     // ADDI x2, x0, 5
       dut.clock.step(1)
       dut.io.result.expect(9.U)     // ADD x3, x1, x2
+
+
         /* 
-         * TODO: Add testcases for all R-type instructions in 'BinaryFile' and check the expected results here
+         * BASIC TESTS
          */
 
-      /* dut.clock.step(1)
-      dut.io.result.expect("hFFFFFFFF".U) */
-
+      
       // SUB x4, x1, x2: x4 = x1 - x2 = 4 - 5 = -1 (two's complement: 0xFFFFFFFF)
       dut.clock.step(1)
       dut.io.result.expect("hFFFFFFFF".U)
@@ -58,6 +58,14 @@ class SimpleRISCV32ITest extends AnyFlatSpec with ChiselScalatestTester {
       dut.clock.step(1)
 
       // SRA x10, x1, x2: x10 = x1 >>> x2 = 4 >>> 5 = 0
+      dut.io.result.expect(0.U)
+      dut.clock.step(1)
+
+      /* 
+         * HARDWIRED ZERO
+      */
+
+      // ADD x0, x8, x7: x0 = x8 + x7 = (129 overwritten) 0
       dut.io.result.expect(0.U)
       dut.clock.step(1)
            

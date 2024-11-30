@@ -78,8 +78,9 @@ class RV32Icore (BinaryFile: String) extends Module {
    * TODO: hard-wire register x0 to zero
    */
   regFile.write(0.U,0.U)
-  val x0 = Wire(UInt(32.W))
-  x0 := regFile.read(0.U) // regFile(0.U)
+
+  // val x0 = Wire(UInt(32.W))
+  // x0 := regFile.read(0.U) // regFile(0.U)
   // -----------------------------------------
   // Fetch
   // -----------------------------------------
@@ -191,12 +192,18 @@ class RV32Icore (BinaryFile: String) extends Module {
   /*
    * TODO: Store "writeBackData" in register "rd" in regFile
    */
-  regFile.write(instr(11,7),writeBackData)
+  // Only write if the destination is not x0
+  when(instr(11, 7) =/= 0.U) { // instr(11,7) is the destination register rd
+    regFile.write(instr(11, 7), writeBackData)
+  }
   // Check Result
   /*
    * TODO: Propagate "writeBackData" to the "check_res" output for testing purposes
    */
   io.check_res := writeBackData
+  when(instr(11, 7) === 0.U) { // instr(11,7) is the destination register rd
+    io.check_res := 0.U
+  }
 
   // Update PC
   // no jumps or branches, next PC always reads next address from IMEM
