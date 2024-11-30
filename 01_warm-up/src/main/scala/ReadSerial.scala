@@ -26,7 +26,7 @@ class Controller extends Module{
     })
 
   // internal variables
-  val sIdle :: sStart :: sReceive :: Nil = Enum(3)
+  val sIdle :: sReceive :: Nil = Enum(2)
   val state = RegInit(sIdle)
   
   io.cnt_en := 0.U
@@ -44,14 +44,16 @@ class Controller extends Module{
     is(sIdle) {
        when(io.reset === 1.U) {
         state := sIdle
-      }.elsewhen(io.rxd === 0.U) { // Start bit detected
-        state := sStart
+        io.valid := 0.U
+      }.elsewhen((io.reset === 0.U) && (io.rxd =/= 1.U)) { // Start bit detected
+        state := sReceive
+        io.valid := 0.U
+      }.otherwise{
+        io.cnt_en := 0.U
+        io.valid := 0.U
+        io.shift_en := 0.U
+        state := sIdle
       }
-    }
-    is(sStart) {
-      io.cnt_en := 1.U
-      io.shift_en := 1.U
-      state := sReceive
     }
     is(sReceive) {
       when(io.reset === 1.U) {
@@ -61,6 +63,11 @@ class Controller extends Module{
         io.valid := 1.U
         io.shift_en := 0.U
         state := sIdle
+      }.otherwise{
+      io.cnt_en := 1.U
+      io.shift_en := 1.U
+      io.valid := 0.U
+      state := sReceive
       }
     }
   }
@@ -84,7 +91,7 @@ class Counter extends Module{
    * TODO: Define internal variables (registers and/or wires), if needed
    */
   val counter = RegInit(0.U(8.W))
-  io.cnt_s := (counter === (8 - 1).U)
+  io.cnt_s := (counter === (8).U)
 
   // state machine
   /* 
@@ -123,7 +130,7 @@ class ShiftRegister extends Module{
    * TODO: Describe functionality if the shift register
    */
   when(io.load === 1.U) {
-    reg := Cat(io.in, reg(8-1, 1))
+    reg := Cat(reg(8-2, 0), io.in)
   }
 
   io.out := reg

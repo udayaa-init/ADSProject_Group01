@@ -31,6 +31,7 @@ class ReadSerialTester extends AnyFlatSpec with ChiselScalatestTester {
       dut.io.reset.poke(1.U) // Activate reset
       dut.clock.step(1) // Step one clock cycle
       dut.io.reset.poke(0.U) // Deactivate reset
+      dut.io.rxd.poke(1.U)
       dut.clock.step(1)
 
       // Case 2: Verification of idle state (rxd = 1)
@@ -56,7 +57,7 @@ class ReadSerialTester extends AnyFlatSpec with ChiselScalatestTester {
 
       // Case 5: Check valid signal and output after all 8 bits
       dut.io.rxd.poke(1.U) // Back to idle state
-      dut.clock.step(1) // Allow valid to go high
+      //dut.clock.step(1) // Allow valid to go high
       dut.io.valid.expect(1.U) // Valid should now be high
       dut.io.dataOut.expect(data) // Output should match transmitted data
       dut.clock.step(1) // Step one more cycle to clear the valid signal
@@ -76,7 +77,7 @@ class ReadSerialTester extends AnyFlatSpec with ChiselScalatestTester {
       }
 
       dut.io.rxd.poke(1.U) // Back to idle
-      dut.clock.step(1)
+     // dut.clock.step(1)
       dut.io.valid.expect(1.U) // Valid should go high again
       dut.io.dataOut.expect(data2) // Output should match the second data byte
       dut.clock.step(1)
