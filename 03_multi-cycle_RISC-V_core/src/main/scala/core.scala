@@ -94,9 +94,8 @@ class MultiCycleRV32Icore (BinaryFile: String) extends Module {
   val regFile = Mem(32, UInt(32.W))
 
   // Hardwire the first register to 0
-  when(true.B) {
-    regFile.write(0.U,0.U)
-  }
+  regFile.write(0.U,0.U)
+  
   // -----------------------------------------
   // Microarchitectural Registers / Wires
   // -----------------------------------------
@@ -297,7 +296,9 @@ class MultiCycleRV32Icore (BinaryFile: String) extends Module {
    */
 
     writeBackData := aluResult 
-    regFile.write(instr(11,7),writeBackData)
+    when(instr(11, 7) =/= 0.U) { // instr(11,7) is the destination register rd
+      regFile.write(instr(11, 7), writeBackData)
+    }
     // Increment the PC (a simple increment by 4)
     PC := PC + 4.U
   
@@ -306,6 +307,9 @@ class MultiCycleRV32Icore (BinaryFile: String) extends Module {
    * DONE: Write result to output
    */
     io.check_res := writeBackData
+    when(instr(11, 7) === 0.U) { // instr(11,7) is the destination register rd
+      io.check_res := 0.U
+    }
 
     // printf("[WRITEBACK] writeBackData = %d\n", writeBackData)
 
