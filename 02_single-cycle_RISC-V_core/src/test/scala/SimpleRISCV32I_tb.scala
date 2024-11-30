@@ -68,6 +68,21 @@ class SimpleRISCV32ITest extends AnyFlatSpec with ChiselScalatestTester {
       // ADD x0, x8, x7: x0 = x8 + x7 = (129 overwritten) 0
       dut.io.result.expect(0.U)
       dut.clock.step(1)
+
+      /* 
+         * MAX POSITIVE IMMEDIATE
+      */
+      // ADDI x1, x0, 1.U
+      // ADDI x3, x1, 2047.U
+      dut.clock.step(1) // extra clock step to run two instructions
+      dut.io.result.expect(2092.U)
+
+      /* 
+         * MAX NEGATIVE IMMEDIATE
+      */
+      // ADDI x3, x1, -1.S
+      dut.clock.step(1) // extra clock step to run two instructions
+      dut.io.result.expect(44.U)
            
     }
   }

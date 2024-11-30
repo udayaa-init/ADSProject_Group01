@@ -129,8 +129,7 @@ class RV32Icore (BinaryFile: String) extends Module {
   operandA := regFile.read(instr(19,15))
   val operandB = Wire(UInt(32.W)) 
   when(isADDI){
-    val extendedValue = instr(31, 20)
-    operandB := extendedValue.asSInt.asUInt()
+    operandB := Cat(Fill(20, instr(31)), instr(31, 20))
    // printf("THe extendedValue is %d \n",operandB)
   }.otherwise{
     operandB := regFile.read(instr(24,20))
