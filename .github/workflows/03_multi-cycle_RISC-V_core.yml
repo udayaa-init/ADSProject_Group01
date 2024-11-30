@@ -7,9 +7,9 @@ name: 03_multi-cycle_RISC-V_core
 
 on:
   push:
-    branches: [ "task03" ]
+    branches: [ "Group1" ]
   pull_request:
-    branches: [ "task03" ]
+    branches: [ "Group1" ]
 
 permissions:
   contents: read

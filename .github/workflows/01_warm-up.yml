@@ -7,9 +7,9 @@ name: 01_warm-up
 
 on:
   push:
-    branches: [ "udaya" ]
+    branches: [ "Group1" ]
   pull_request:
-    branches: [ "udaya" ]
+    branches: [ "Group1" ]
 
 permissions:
   contents: read
