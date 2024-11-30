@@ -61,6 +61,10 @@ class SimpleRISCV32ITest extends AnyFlatSpec with ChiselScalatestTester {
       dut.io.result.expect(0.U)
       dut.clock.step(1)
 
+      // SLT x11, x1, x2
+      dut.io.result.expect(1.U)
+      dut.clock.step(1)
+
       /* 
          * HARDWIRED ZERO
       */
@@ -83,6 +87,52 @@ class SimpleRISCV32ITest extends AnyFlatSpec with ChiselScalatestTester {
       // ADDI x3, x1, -1.S
       dut.clock.step(1) // extra clock step to run two instructions
       dut.io.result.expect(44.U)
+
+      /* 
+         * OVERFLOW TEST ADD
+      */
+      // ADDI x1, x0, 1.U
+      // ADDI x2, x0, -1.S
+      // ADD x3, x1, x2 // x1(1) + x2(-1) = 0
+      dut.clock.step(3) // extra clock steps to run three instructions
+      dut.io.result.expect(0.U)
+
+      /* 
+         * ADDING NEGATIVE NUMBERS
+      */
+      // ADDI x1, x0, -16 // x1 (-16) + x2 (-1)
+      // ADD x3, x1, x2
+      dut.clock.step(2)
+      dut.io.result.expect(4294967279L.U) //(-17)
+
+      /* 
+         * SLT NEGATIVE NUMBERS
+      */
+      // SLT x3, x1, x2 // x1 (-16) < x2(-1)
+      dut.clock.step(1)
+      dut.io.result.expect(1.U)
+
+      /* 
+         * SLT NEGATIVE and POSITIVE NUMBERS
+      */
+      // ADDI x1, x0, 1.U // x1 (1) < x2 (-1)
+      // SLT x3, x1, x2
+      dut.clock.step(2)
+      dut.io.result.expect(0.U)
+
+      /* 
+         * NEGATIVE SRA
+      */
+      // SRA x3, x2, x1  // x2 (0xFFFFFFFF) > x1 (1)
+      dut.clock.step(1)
+      dut.io.result.expect(4294967295L.U) // (0xFFFFFFFF)
+
+       /* 
+         * UNDEFINED OPCODE
+      */
+      // 0x00000000
+      dut.clock.step(1)
+      dut.io.result.expect(0.U) // 
            
     }
   }
