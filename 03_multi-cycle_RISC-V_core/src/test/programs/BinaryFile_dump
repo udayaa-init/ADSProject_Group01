@@ -1,3 +1,26 @@
-        /* 
-         * TODO: Insert testcases from assignment 2 and adapt them for the multi-cycle core
-         */
+00000013 // ADDI    x0,     x0,     0   | NOP
+00400093 // ADDI    x1,     x0,     4
+00500113 // ADDI    x2,     x0,     5
+002081b3 // ADD     x3,     x1,     x2
+40208233 // SUB     x4,     x1,     x2
+002082b3 // AND     x5,     x1,     x2
+00208333 // OR      x6,     x1,     x2
+002083b3 // XOR     x7,     x1,     x2
+00209133 // SLL     x8,     x1,     x2
+002091b3 // SRL     x9,     x1,     x2
+402091b3 // SRA     x10,    x1,     x2
+0020a3b3 // SLT     x11,    x1,     x2
+00740033 // ADD     x0,     x8,     x7
+02d00093 // ADDI    x1,     x0,     1.U
+7ff08193 // ADDI    x3,     x1,     2047.U
+fff08293 // ADDI    x3,     x1,     -1.S
+00100093 // ADDI    x1,     x0,     1.U
+fff00113 // ADDI    x2,     x0,     -1.S 
+002081b3 // ADD     x3,     x1,     x2
+ff000093 // ADDI    x1,     x0,     -16
+002081b3 // ADD     x3,     x1,     x2
+0020a1b3 // SLT     x3,     x1,     x2
+00100093 // ADDI    x1,     x0,     1.U
+0020a1b3 // SLT     x3,     x1,     x2    
+401151b3 // SRA     x3,     x2,     x1
+00000000 //                             | Undefined Opcode
