@@ -5,7 +5,6 @@
 00000013 // ADDI    x0,     x0,     0   | NOP
 00000013 // ADDI    x0,     x0,     0   | NOP
 00000013 // ADDI    x0,     x0,     0   | NOP
-00000013 // ADDI    x0,     x0,     0   | NOP
 002081b3 // ADD     x3,     x1,     x2
 40208233 // SUB     x4,     x1,     x2
 002082b3 // AND     x5,     x1,     x2
@@ -16,10 +15,8 @@
 402091b3 // SRA     x10,    x1,     x2
 0020a3b3 // SLT     x11,    x1,     x2
 00000013 // ADDI    x0,     x0,     0   | NOP
-00000013 // ADDI    x0,     x0,     0   | NOP
 00740033 // ADD     x0,     x8,     x7
 02d00093 // ADDI    x1,     x0,     1.U
-00000013 // ADDI    x0,     x0,     0   | NOP
 00000013 // ADDI    x0,     x0,     0   | NOP
 00000013 // ADDI    x0,     x0,     0   | NOP
 00000013 // ADDI    x0,     x0,     0   | NOP
@@ -32,10 +29,8 @@ fff00113 // ADDI    x2,     x0,     -1.S
 00000013 // ADDI    x0,     x0,     0   | NOP
 00000013 // ADDI    x0,     x0,     0   | NOP
 00000013 // ADDI    x0,     x0,     0   | NOP
-00000013 // ADDI    x0,     x0,     0   | NOP
 002081b3 // ADD     x3,     x1,     x2
 ff000093 // ADDI    x1,     x0,     -16
-00000013 // ADDI    x0,     x0,     0   | NOP
 00000013 // ADDI    x0,     x0,     0   | NOP
 00000013 // ADDI    x0,     x0,     0   | NOP
 00000013 // ADDI    x0,     x0,     0   | NOP
@@ -43,7 +38,6 @@ ff000093 // ADDI    x1,     x0,     -16
 002081b3 // ADD     x3,     x1,     x2
 0020a1b3 // SLT     x3,     x1,     x2
 00100093 // ADDI    x1,     x0,     1.U
-00000013 // ADDI    x0,     x0,     0   | NOP
 00000013 // ADDI    x0,     x0,     0   | NOP
 00000013 // ADDI    x0,     x0,     0   | NOP
 00000013 // ADDI    x0,     x0,     0   | NOP

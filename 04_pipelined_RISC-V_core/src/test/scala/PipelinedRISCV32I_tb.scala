@@ -28,7 +28,7 @@ class PipelinedRISCV32ITest extends AnyFlatSpec with ChiselScalatestTester {
       dut.io.result.expect(4.U)     // ADDI x1, x0, 4
       dut.clock.step(1)
       dut.io.result.expect(5.U)     // ADDI x2, x0, 5
-      dut.clock.step(6)             // RAW Hazard, need to stall using NOP
+      dut.clock.step(5)             // RAW Hazard, need to stall using NOP
       dut.io.result.expect(9.U)     // ADD x3, x1, x2
 
 
@@ -68,7 +68,7 @@ class PipelinedRISCV32ITest extends AnyFlatSpec with ChiselScalatestTester {
 
       // SLT x11, x1, x2
       dut.io.result.expect(1.U)
-      dut.clock.step(3) // RAW Hazard, need to stall using NOP
+      dut.clock.step(2) // RAW Hazard, need to stall using NOP
 
       /* 
          * HARDWIRED ZERO
@@ -83,7 +83,7 @@ class PipelinedRISCV32ITest extends AnyFlatSpec with ChiselScalatestTester {
       */
       // ADDI x1, x0, 1.U
       // ADDI x3, x1, 2047.U
-      dut.clock.step(6) // RAW Hazard, need to stall using NOP
+      dut.clock.step(5) // RAW Hazard, need to stall using NOP
       dut.io.result.expect(2092.U)
 
       /* 
@@ -99,7 +99,7 @@ class PipelinedRISCV32ITest extends AnyFlatSpec with ChiselScalatestTester {
       // ADDI x1, x0, 1.U
       // ADDI x2, x0, -1.S
       // ADD x3, x1, x2 // x1(1) + x2(-1) = 0
-      dut.clock.step(8) // RAW Hazard, need to stall using NOP
+      dut.clock.step(7) // RAW Hazard, need to stall using NOP
       dut.io.result.expect(0.U)
 
       /* 
@@ -107,7 +107,7 @@ class PipelinedRISCV32ITest extends AnyFlatSpec with ChiselScalatestTester {
       */
       // ADDI x1, x0, -16 // x1 (-16) + x2 (-1)
       // ADD x3, x1, x2
-      dut.clock.step(7)
+      dut.clock.step(6)// RAW Hazard, need to stall using NOP
       dut.io.result.expect(4294967279L.U) //(-17)
 
       /* 
@@ -122,7 +122,7 @@ class PipelinedRISCV32ITest extends AnyFlatSpec with ChiselScalatestTester {
       */
       // ADDI x1, x0, 1.U // x1 (1) < x2 (-1)
       // SLT x3, x1, x2
-      dut.clock.step(7)
+      dut.clock.step(6)// RAW Hazard, need to stall using NOP
       dut.io.result.expect(0.U)
 
       /* 
