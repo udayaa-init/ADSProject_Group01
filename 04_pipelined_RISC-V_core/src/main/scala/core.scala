@@ -508,7 +508,7 @@ class IFBarrier extends Module {
     io.out.funct3 := funct3Reg
     io.out.funct7 := funct7Reg    
 
-    printf("[IF] instr = %x\n",io.in.instr)
+    // printf("[IF] instr = %x\n",io.in.instr)
 
 }
 
@@ -545,9 +545,9 @@ class IDBarrier extends Module {
   io.out.operandA  := operandAReg 
   io.out.operandB  := operandBReg  
 
-  printf(p"[ID] upo = ${io.in.upo}\n")
-  printf("[ID] operandA = %d\n",io.in.operandA)
-  printf("[ID] operandB = %d\n",io.in.operandB)
+  // printf(p"[ID] upo = ${io.in.upo}\n")
+  // printf("[ID] operandA = %d\n",io.in.operandA)
+  // printf("[ID] operandB = %d\n",io.in.operandB)
 }
 
 
@@ -576,7 +576,7 @@ class EXBarrier extends Module {
   io.out.rd         := rdReg
   io.out.aluResult  := aluResultReg
 
-  printf("[EX] aluResult = %d\n",io.in.aluResult)
+  // printf("[EX] aluResult = %d\n",io.in.aluResult)
 }
 
 
@@ -605,7 +605,7 @@ class MEMBarrier extends Module {
   io.out.rd         := rdReg
   io.out.aluResult  := aluResultReg
 
-  printf("[MEM]\n")
+  // printf("[MEM]\n")
 }
 
 
@@ -638,8 +638,8 @@ class WBBarrier extends Module {
   io.out.data     := dataReg
   io.out.RegWrite := RegWriteReg
 
-  printf("[WB] reg  = %d\n",io.in.reg)
-  printf("[WB] data = %d\n",io.in.data)
+  // printf("[WB] reg  = %d\n",io.in.reg)
+  // printf("[WB] data = %d\n",io.in.data)
 }
 
 
