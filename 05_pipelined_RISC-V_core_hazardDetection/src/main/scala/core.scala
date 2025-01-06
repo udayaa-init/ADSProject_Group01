@@ -97,24 +97,80 @@ class regFile extends Module {
 
 }
 
-class ForwardingUnit extends Module {
-  val io = IO(new Bundle {
-    // What inputs and / or outputs does the forwarding unit need?
-  })
-
-
-  /* TODO:
+/* TODO:
      Hazard detetction logic:
      Which pipeline stages are affected and how can a potential hazard be detetced there?
+     Affected Stages: ID, EX, MEM, and WB.
+	   Detection: Compare rs1/rs2 of the current instruction with rd of instructions in EX, MEM, or WB, and check regWrite and memToReg signals.
   */
 
   /* TODO:
      Forwarding Selection:
      Select the appropriate value to forward from one stage to another based on the hazard checks.
+     Use forwarding signals (forwardA, forwardB) and multiplexers to select data from EX (EXBarrier.io.outAluResult), MEM (MEMBarrier.io.outAluResult), or ID (IDBarrier.io.outOperandA/B) stages.
   */
 
+
+class HazardDetectionUnit extends Module {
+  val io = IO(new Bundle {
+    val rs1ID = Input(UInt(5.W))
+    val rs2ID = Input(UInt(5.W))
+    val rdEX = Input(UInt(5.W))
+    val rdMEM = Input(UInt(5.W))
+    val rdWB = Input(UInt(5.W))
+    val memToRegEX = Input(Bool()) // Indicates if EX stage performs load
+    val regWriteEX = Input(Bool())
+    val regWriteMEM = Input(Bool())
+    val regWriteWB = Input(Bool())
+    val stall = Output(Bool()) // Stall signal for load-use hazard
+  })
+
+  // Load-Use Hazard Detection
+  val hazardRS1 = (io.rs1ID === io.rdEX) && io.memToRegEX && io.rdEX =/= 0.U
+  val hazardRS2 = (io.rs2ID === io.rdEX) && io.memToRegEX && io.rdEX =/= 0.U
+
+  io.stall := hazardRS1 || hazardRS2
 }
 
+class ForwardingUnit extends Module {
+  val io = IO(new Bundle {
+    // What inputs and / or outputs does the forwarding unit need?
+    val rs1ID = Input(UInt(5.W))   // Source register 1 identifier from ID stage
+    val rs2ID = Input(UInt(5.W))   // Source register 2 identifier from ID stage
+    val rdEX = Input(UInt(5.W))    // Destination register identifier from EX stage
+    val rdMEM = Input(UInt(5.W))   // Destination register identifier from MEM stage
+    val regWriteEX = Input(Bool()) // Indicates if the EX stage writes to a register
+    val regWriteMEM = Input(Bool()) // Indicates if the MEM stage writes to a register
+    val forwardA = Output(UInt(2.W)) // Forwarding select signal for operandA
+    val forwardB = Output(UInt(2.W)) // Forwarding select signal for operandB
+  })
+
+  // Forwarding Logic for operandA
+  // Check if the source register rs1 in the ID stage matches rdEX or rdMEM
+  when(io.rs1ID === io.rdEX && io.regWriteEX && io.rdEX =/= 0.U) {
+    // Forward from EX stage if the register matches and EX writes back
+    io.forwardA := "b10".U
+  }.elsewhen(io.rs1ID === io.rdMEM && io.regWriteMEM && io.rdMEM =/= 0.U) {
+    // Forward from MEM stage if the register matches and MEM writes back
+    io.forwardA := "b01".U
+  }.otherwise {
+    // No forwarding for operandA
+    io.forwardA := "b00".U
+  }
+
+  // Forwarding Logic for operandB
+  // Check if the source register rs2 in the ID stage matches rdEX or rdMEM
+  when(io.rs2ID === io.rdEX && io.regWriteEX && io.rdEX =/= 0.U) {
+    // Forward from EX stage if the register matches and EX writes back
+    io.forwardB := "b10".U
+  }.elsewhen(io.rs2ID === io.rdMEM && io.regWriteMEM && io.rdMEM =/= 0.U) {
+    // Forward from MEM stage if the register matches and MEM writes back
+    io.forwardB := "b01".U
+  }.otherwise {
+    // No forwarding for operandB
+    io.forwardB := "b00".U
+  }
+} 
 
 // -----------------------------------------
 // Fetch Stage
@@ -456,49 +512,11 @@ class WBBarrier extends Module {
 // Main Class
 // -----------------------------------------
 
-class HazardDetectionRV32Icore (BinaryFile: String) extends Module {
+
+class HazardDetectionRV32Icore(BinaryFile: String) extends Module {
   val io = IO(new Bundle {
-    val check_res = Output(UInt(32.W))
+    val check_res = Output(UInt(32.W)) // Output to check the result from WB stage
   })
-
-
-  // Pipeline Registers
-  val IFBarrier  = Module(new IFBarrier)
-  val IDBarrier  = Module(new IDBarrier)
-  val EXBarrier  = Module(new EXBarrier)
-  val MEMBarrier = Module(new MEMBarrier)
-  val WBBarrier  = Module(new WBBarrier)
-
-  // Pipeline Stages
-  val IF  = Module(new IF(BinaryFile))
-  val ID  = Module(new ID)
-  val EX  = Module(new EX)
-  val MEM = Module(new MEM)
-  val WB  = Module(new WB)
-
-  /* 
-    TODO: Instantiate the forwarding unit.
-  */
-
-
-  //Register File
-  val regFile = Module(new regFile)
-
-  // Connections for IOs
-  IFBarrier.io.inInstr      := IF.io.instr
-  
-  ID.io.instr               := IFBarrier.io.outInstr
-  ID.io.regFileReq_A        <> regFile.io.req_1
-  ID.io.regFileReq_B        <> regFile.io.req_2
-  ID.io.regFileResp_A       <> regFile.io.resp_1
-  ID.io.regFileResp_B       <> regFile.io.resp_2
-
-  IDBarrier.io.inUOP        := ID.io.uop
-  IDBarrier.io.inRD         := ID.io.rd
-  IDBarrier.io.inRS1        := ID.io.rs1
-  IDBarrier.io.inRS2        := ID.io.rs2
-  IDBarrier.io.inOperandA   := ID.io.operandA
-  IDBarrier.io.inOperandB   := ID.io.operandB
 
   /* 
     TODO: Connect the I/Os of the forwarding unit 
@@ -508,27 +526,105 @@ class HazardDetectionRV32Icore (BinaryFile: String) extends Module {
     TODO: Implement MUXes to select which values are sent to the EX stage as operands
   */
 
-  EX.io.uop := IDBarrier.io.outUOP
-
   /* 
     TODO: Connect operand inputs in EX stage to forwarding logic
   */
+
+  // Pipeline Registers
+  val IFBarrier  = Module(new IFBarrier)  // IF/ID Barrier
+  val IDBarrier  = Module(new IDBarrier)  // ID/EX Barrier
+  val EXBarrier  = Module(new EXBarrier)  // EX/MEM Barrier
+  val MEMBarrier = Module(new MEMBarrier) // MEM/WB Barrier
+  val WBBarrier  = Module(new WBBarrier)  // WB Barrier
+
+  // Pipeline Stages
+  val IF  = Module(new IF(BinaryFile))    // Fetch Stage
+  val ID  = Module(new ID)                // Decode Stage
+  val EX  = Module(new EX)                // Execute Stage
+  val MEM = Module(new MEM)               // Memory Stage
+  val WB  = Module(new WB)                // Writeback Stage
+
+
+  // Forwarding Unit
+  val forwardingUnit = Module(new ForwardingUnit)
+
+  // Hazard Detection Unit
+  val hazardDetectionUnit = Module(new HazardDetectionUnit)
+
+  // Register File
+  val regFile = Module(new regFile)
+
+  // Connections for IOs
+  IFBarrier.io.inInstr := IF.io.instr
+  ID.io.instr := IFBarrier.io.outInstr
+  ID.io.regFileReq_A <> regFile.io.req_1
+  ID.io.regFileReq_B <> regFile.io.req_2
+  ID.io.regFileResp_A <> regFile.io.resp_1
+  ID.io.regFileResp_B <> regFile.io.resp_2
+
+  IDBarrier.io.inUOP := ID.io.uop
+  IDBarrier.io.inRD := ID.io.rd
+  IDBarrier.io.inRS1 := ID.io.rs1
+  IDBarrier.io.inRS2 := ID.io.rs2
+  IDBarrier.io.inOperandA := ID.io.operandA
+  IDBarrier.io.inOperandB := ID.io.operandB
+
+  // Hazard Detection Unit Connections
+  hazardDetectionUnit.io.rs1ID := IDBarrier.io.outRS1
+  hazardDetectionUnit.io.rs2ID := IDBarrier.io.outRS2
+  hazardDetectionUnit.io.rdEX := EXBarrier.io.outRD
+  hazardDetectionUnit.io.memToRegEX := true.B // Assume load in EX
+  hazardDetectionUnit.io.regWriteEX := true.B
+  hazardDetectionUnit.io.regWriteMEM := true.B
+
+  // Stall Logic
+  when(hazardDetectionUnit.io.stall) {
+  IFBarrier.io.inInstr := 0.U // NOP
+  IDBarrier.io.inUOP := uopc.invalid
+  IF.io.PC := IF.io.PC // Freeze PC
+}
+  // Forwarding Unit Connections
+  forwardingUnit.io.rs1ID := IDBarrier.io.outRS1
+  forwardingUnit.io.rs2ID := IDBarrier.io.outRS2
+  forwardingUnit.io.rdEX := EXBarrier.io.outRD
+  forwardingUnit.io.rdMEM := MEMBarrier.io.outRD
+  forwardingUnit.io.regWriteEX := true.B
+  forwardingUnit.io.regWriteMEM := true.B
+
+  // Forwarding signals
+  val forwardA = forwardingUnit.io.forwardA
+  val forwardB = forwardingUnit.io.forwardB
+
+  // IDBarrier -> EX
+  EX.io.uop := IDBarrier.io.outUOP
+  EX.io.operandA := MuxLookup(forwardA, IDBarrier.io.outOperandA, Seq(
+    "b10".U -> EXBarrier.io.outAluResult,  // Forward from EX stage
+    "b01".U -> MEMBarrier.io.outAluResult // Forward from MEM stage
+  ))
+  EX.io.operandB := MuxLookup(forwardB, IDBarrier.io.outOperandB, Seq(
+    "b10".U -> EXBarrier.io.outAluResult,  // Forward from EX stage
+    "b01".U -> MEMBarrier.io.outAluResult // Forward from MEM stage
+  ))
+
   EX.io.operandA := 0.U // just there to make empty project buildable
   EX.io.operandB := 0.U // just there to make empty project buildable
 
-  EXBarrier.io.inRD         := IDBarrier.io.outRD
-  EXBarrier.io.inAluResult  := EX.io.aluResult
+  // EX -> EXBarrier
+  EXBarrier.io.inRD := IDBarrier.io.outRD
+  EXBarrier.io.inAluResult := EX.io.aluResult
 
-  MEMBarrier.io.inRD        := EXBarrier.io.outRD
+  // EXBarrier -> MEM
+  MEMBarrier.io.inRD := EXBarrier.io.outRD
   MEMBarrier.io.inAluResult := EXBarrier.io.outAluResult
 
-  WB.io.rd                  := MEMBarrier.io.outRD
-  WB.io.aluResult           := MEMBarrier.io.outAluResult
-  WB.io.regFileReq          <> regFile.io.req_3
+  // MEM -> WB
+  WB.io.rd := MEMBarrier.io.outRD
+  WB.io.aluResult := MEMBarrier.io.outAluResult
+  WB.io.regFileReq <> regFile.io.req_3
 
-  WBBarrier.io.inCheckRes   := WB.io.check_res
+  // WB -> WBBarrier
+  WBBarrier.io.inCheckRes := WB.io.check_res
 
-  io.check_res              := WBBarrier.io.outCheckRes
-
+  // Output result
+  io.check_res := WBBarrier.io.outCheckRes
 }
-
