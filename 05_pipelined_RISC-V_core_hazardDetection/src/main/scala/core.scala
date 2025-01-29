@@ -95,14 +95,44 @@ class regFile extends Module {
   io.resp_1.data := Mux(io.req_1.addr === 0.U, 0.U, regFile(io.req_1.addr))
   io.resp_2.data := Mux(io.req_2.addr === 0.U, 0.U, regFile(io.req_2.addr))
 
+  // Special Register File
+  when(io.req_3.wr_en && (io.req_1.addr === io.req_3.addr)){
+    io.resp_1.data := Mux(io.req_1.addr === 0.U, 0.U, io.req_3.data) 
+  }
+
+  when(io.req_3.wr_en && (io.req_2.addr === io.req_3.addr)){
+    io.resp_2.data := Mux(io.req_2.addr === 0.U, 0.U, io.req_3.data)
+  }
+
 }
 
 /* TODO:
      Hazard detetction logic:
      Which pipeline stages are affected and how can a potential hazard be detetced there?
      Affected Stages: ID, EX, MEM, and WB.
-	   Detection: Compare rs1/rs2 of the current instruction with rd of instructions in EX, MEM, or WB, and check regWrite and memToReg signals.
+	   Detection: Compare rs1/rs2 of the current instruction with rd of instructions in EX and MEM
   */
+
+  class HazardDetectionUnit extends Module {
+  val io = IO(new Bundle {
+    val rs1ID = Input(UInt(5.W))
+    val rs2ID = Input(UInt(5.W))
+    val rdEX = Input(UInt(5.W))
+    val rdMEM = Input(UInt(5.W))
+    val rdWB = Input(UInt(5.W))
+    val wr_en = Input(Bool())
+    val stall = Output(Bool()) // Stall signal for load-use hazard
+  })
+
+  // Load-Use Hazard Detection
+  val hazardEXRS1 = (io.rs1ID === io.rdEX) && (io.rdEX =/= 0.U)
+  val hazardEXRS2 = (io.rs2ID === io.rdEX) && (io.rdEX =/= 0.U)
+
+  val hazardMEMRS1 = (io.rs1ID === io.rdMEM) && (io.rdMEM =/= 0.U)
+  val hazardMEMRS2 = (io.rs2ID === io.rdMEM) && (io.rdMEM =/= 0.U)
+
+  io.stall := hazardEXRS1 || hazardEXRS2 || hazardMEMRS1 || hazardMEMRS2
+}
 
   /* TODO:
      Forwarding Selection:
@@ -111,27 +141,6 @@ class regFile extends Module {
   */
 
 
-class HazardDetectionUnit extends Module {
-  val io = IO(new Bundle {
-    val rs1ID = Input(UInt(5.W))
-    val rs2ID = Input(UInt(5.W))
-    val rdEX = Input(UInt(5.W))
-    val rdMEM = Input(UInt(5.W))
-    val rdWB = Input(UInt(5.W))
-    val memToRegEX = Input(Bool()) // Indicates if EX stage performs load
-    val regWriteEX = Input(Bool())
-    val regWriteMEM = Input(Bool())
-    val regWriteWB = Input(Bool())
-    val stall = Output(Bool()) // Stall signal for load-use hazard
-  })
-
-  // Load-Use Hazard Detection
-  val hazardRS1 = (io.rs1ID === io.rdEX) && io.memToRegEX && io.rdEX =/= 0.U
-  val hazardRS2 = (io.rs2ID === io.rdEX) && io.memToRegEX && io.rdEX =/= 0.U
-
-  io.stall := hazardRS1 || hazardRS2
-}
-
 class ForwardingUnit extends Module {
   val io = IO(new Bundle {
     // What inputs and / or outputs does the forwarding unit need?
@@ -139,18 +148,16 @@ class ForwardingUnit extends Module {
     val rs2ID = Input(UInt(5.W))   // Source register 2 identifier from ID stage
     val rdEX = Input(UInt(5.W))    // Destination register identifier from EX stage
     val rdMEM = Input(UInt(5.W))   // Destination register identifier from MEM stage
-    val regWriteEX = Input(Bool()) // Indicates if the EX stage writes to a register
-    val regWriteMEM = Input(Bool()) // Indicates if the MEM stage writes to a register
     val forwardA = Output(UInt(2.W)) // Forwarding select signal for operandA
     val forwardB = Output(UInt(2.W)) // Forwarding select signal for operandB
   })
 
   // Forwarding Logic for operandA
   // Check if the source register rs1 in the ID stage matches rdEX or rdMEM
-  when(io.rs1ID === io.rdEX && io.regWriteEX && io.rdEX =/= 0.U) {
+  when(io.rs1ID === io.rdEX && io.rdEX =/= 0.U) {
     // Forward from EX stage if the register matches and EX writes back
     io.forwardA := "b10".U
-  }.elsewhen(io.rs1ID === io.rdMEM && io.regWriteMEM && io.rdMEM =/= 0.U) {
+  }.elsewhen(io.rs1ID === io.rdMEM && io.rdMEM =/= 0.U) {
     // Forward from MEM stage if the register matches and MEM writes back
     io.forwardA := "b01".U
   }.otherwise {
@@ -160,10 +167,10 @@ class ForwardingUnit extends Module {
 
   // Forwarding Logic for operandB
   // Check if the source register rs2 in the ID stage matches rdEX or rdMEM
-  when(io.rs2ID === io.rdEX && io.regWriteEX && io.rdEX =/= 0.U) {
+  when(io.rs2ID === io.rdEX && io.rdEX =/= 0.U) {
     // Forward from EX stage if the register matches and EX writes back
     io.forwardB := "b10".U
-  }.elsewhen(io.rs2ID === io.rdMEM && io.regWriteMEM && io.rdMEM =/= 0.U) {
+  }.elsewhen(io.rs2ID === io.rdMEM && io.rdMEM =/= 0.U) {
     // Forward from MEM stage if the register matches and MEM writes back
     io.forwardB := "b01".U
   }.otherwise {
@@ -191,6 +198,8 @@ class IF (BinaryFile: String) extends Module {
   // Update PC
   // no jumps or branches, next PC always reads next address from IMEM
   PC := PC + 4.U
+  // printf("[FETCH] PC = %d\n",PC>>2)
+  // printf("[FETCH] instr = %x\n",IMem(PC>>2.U))
   
 }
 
@@ -230,66 +239,88 @@ class ID extends Module {
     when(funct3 === "b000".U){
       when(funct7 === "b0000000".U){
         io.uop := isADD
+        // printf("[DECODE] uop isADD\n")
       }.elsewhen(funct7 === "b0100000".U){
         io.uop := isSUB
+        // printf("[DECODE] uop isSUB\n")
       }.otherwise{
         io.uop := invalid
+        // printf("[DECODE] uop invalid\n")
       }
     }.elsewhen(funct3 === "b100".U){
       when(funct7 === "b0000000".U){
         io.uop := isXOR
+        // printf("[DECODE] uop isXOR\n")
       }.otherwise{
         io.uop := invalid
+        // printf("[DECODE] uop invalid\n")
       }
     }.elsewhen(funct3 === "b110".U){
       when(funct7 === "b0000000".U){
         io.uop := isOR
+        // printf("[DECODE] uop isOR\n")
       }.otherwise{
         io.uop := invalid
+        // printf("[DECODE] uop invalid\n")
       }
     }.elsewhen(funct3 === "b111".U){
       when(funct7 === "b0000000".U){
         io.uop := isAND
+        // printf("[DECODE] uop isAND\n")
       }.otherwise{
         io.uop := invalid
+        // printf("[DECODE] uop invalid\n")
       }
     }.elsewhen(funct3 === "b001".U){
       when(funct7 === "b0000000".U){
         io.uop := isSLL
+        // printf("[DECODE] uop isSLL\n")
       }.otherwise{
         io.uop := invalid
+        // printf("[DECODE] uop invalid\n")
       }
     }.elsewhen(funct3 === "b101".U){
       when(funct7 === "b0000000".U){
         io.uop := isSRL
+        // printf("[DECODE] uop isSRL\n")
       }.elsewhen(funct7 === "b0100000".U){
         io.uop := isSRA
+        // printf("[DECODE] uop isSRA\n")
       }.otherwise{
         io.uop := invalid
+        // printf("[DECODE] uop invalid\n")
       }
     }.elsewhen(funct3 === "b010".U){
       when(funct7 === "b0000000".U){
         io.uop := isSLT
+        // printf("[DECODE] uop isSLT\n")
       }.otherwise{
         io.uop := invalid
+        // printf("[DECODE] uop invalid\n")
       }
     }.elsewhen(funct3 === "b011".U){
       when(funct7 === "b0000000".U){
         io.uop := isSLTU
+        // printf("[DECODE] uop isSLTU\n")
       }.otherwise{
         io.uop := invalid
+        // printf("[DECODE] uop invalid\n")
       }
     }.otherwise{
       io.uop := invalid
+      // printf("[DECODE] uop invalid\n")
     }
   }.elsewhen(opcode === "b0010011".U){
     when(funct3 === "b000".U){
       io.uop := isADDI
+      // printf("[DECODE] uop isADDI\n")
     }.otherwise{
       io.uop := invalid
+      // printf("[DECODE] uop invalid\n")
     }
   }.otherwise{
     io.uop := invalid
+    // printf("[DECODE] uop invalid\n")
   }
 
   // Operands
@@ -320,30 +351,44 @@ class EX extends Module {
   val operandB = io.operandB
   val uop      = io.uop
 
+  // printf("[EXECUTE] operandA = %d, operandB = %d\n",operandA,operandB)
+
   when(uop === isADDI) { 
       io.aluResult := operandA + operandB 
+      // printf("[EXECUTE] uop isADDI\n")
     }.elsewhen(uop === isADD) {                           
       io.aluResult := operandA + operandB 
+      // printf("[EXECUTE] uop isADD\n")
     }.elsewhen(uop === isSUB) {  
-      io.aluResult := operandA - operandB 
+      io.aluResult := operandA - operandB
+      // printf("[EXECUTE] uop isSUB\n") 
     }.elsewhen(uop === isXOR) {  
-      io.aluResult := operandA ^ operandB 
+      io.aluResult := operandA ^ operandB
+      // printf("[EXECUTE] uop isXOR\n") 
     }.elsewhen(uop === isOR) {  
-      io.aluResult := operandA | operandB 
+      io.aluResult := operandA | operandB
+      // printf("[EXECUTE] uop isOR\n") 
     }.elsewhen(uop === isAND) {  
-      io.aluResult := operandA & operandB 
+      io.aluResult := operandA & operandB
+      // printf("[EXECUTE] uop isAND\n") 
     }.elsewhen(uop === isSLL) {  
-      io.aluResult := operandA << operandB(4, 0) 
+      io.aluResult := operandA << operandB(4, 0)
+      // printf("[EXECUTE] uop isSLL\n") 
     }.elsewhen(uop === isSRL) {  
-      io.aluResult := operandA >> operandB(4, 0) 
+      io.aluResult := operandA >> operandB(4, 0)
+      // printf("[EXECUTE] uop isSRL\n") 
     }.elsewhen(uop === isSRA) {  
-      io.aluResult := operandA >> operandB(4, 0)          // automatic sign extension, if SInt datatype is used
+      io.aluResult := (operandA.asSInt >> operandB(4, 0)).asUInt        // automatic sign extension, if SInt datatype is used
+      // printf("[EXECUTE] uop isSRA\n")
     }.elsewhen(uop === isSLT) {  
-      io.aluResult := Mux(operandA < operandB, 1.U, 0.U)  // automatic sign extension, if SInt datatype is used
+      io.aluResult := (operandA.asSInt < operandB.asSInt).asUInt  // automatic sign extension, if SInt datatype is used
+      // printf("[EXECUTE] uop isSLT\n")
     }.elsewhen(uop === isSLTU) {  
-      io.aluResult := Mux(operandA < operandB, 1.U, 0.U) 
+      io.aluResult := Mux(operandA < operandB, 1.U, 0.U)
+      // printf("[EXECUTE] uop isSLTU\n") 
     }.otherwise{
       io.aluResult := "h_FFFF_FFFF".U // = 2^32 - 1; self-defined encoding for invalid operation, value is unlikely to be reached in a regular arithmetic operation
+      // printf("[EXECUTE] uop invalid\n")
     } 
 
 }
@@ -378,7 +423,7 @@ class WB extends Module {
  io.regFileReq.wr_en := io.aluResult =/= "h_FFFF_FFFF".U  // could depend on the current uopc, if ISA is extendet beyond R-type and I-type instructions
 
  io.check_res := io.aluResult
-
+// printf("[WRITEBACK] writeBackData = %d\n", io.aluResult)
 }
 
 
@@ -518,19 +563,7 @@ class HazardDetectionRV32Icore(BinaryFile: String) extends Module {
     val check_res = Output(UInt(32.W)) // Output to check the result from WB stage
   })
 
-  /* 
-    TODO: Connect the I/Os of the forwarding unit 
-  */
-
-  /* 
-    TODO: Implement MUXes to select which values are sent to the EX stage as operands
-  */
-
-  /* 
-    TODO: Connect operand inputs in EX stage to forwarding logic
-  */
-
-  // Pipeline Registers
+ // Pipeline Registers
   val IFBarrier  = Module(new IFBarrier)  // IF/ID Barrier
   val IDBarrier  = Module(new IDBarrier)  // ID/EX Barrier
   val EXBarrier  = Module(new EXBarrier)  // EX/MEM Barrier
@@ -545,58 +578,74 @@ class HazardDetectionRV32Icore(BinaryFile: String) extends Module {
   val WB  = Module(new WB)                // Writeback Stage
 
 
-  // Forwarding Unit
+  /* 
+    TODO: Instantiate the forwarding unit.
+  */
   val forwardingUnit = Module(new ForwardingUnit)
-
-  // Hazard Detection Unit
-  val hazardDetectionUnit = Module(new HazardDetectionUnit)
 
   // Register File
   val regFile = Module(new regFile)
 
   // Connections for IOs
+  // IF --> IF Barrier
   IFBarrier.io.inInstr := IF.io.instr
-  ID.io.instr := IFBarrier.io.outInstr
+  printf("[IF] instr = %x\n", IF.io.instr)
+
+  // IF Barrier --> ID
+  ID.io.instr := IFBarrier.io.outInstr  
+
+  // Reg File --> ID
   ID.io.regFileReq_A <> regFile.io.req_1
   ID.io.regFileReq_B <> regFile.io.req_2
   ID.io.regFileResp_A <> regFile.io.resp_1
   ID.io.regFileResp_B <> regFile.io.resp_2
 
+  // ID --> ID Barrier
   IDBarrier.io.inUOP := ID.io.uop
   IDBarrier.io.inRD := ID.io.rd
   IDBarrier.io.inRS1 := ID.io.rs1
   IDBarrier.io.inRS2 := ID.io.rs2
   IDBarrier.io.inOperandA := ID.io.operandA
   IDBarrier.io.inOperandB := ID.io.operandB
+  printf("[ID] operandA = %d\n", ID.io.operandA)
+  printf("[ID] OperandB = %d\n", ID.io.operandB)
 
-  // Hazard Detection Unit Connections
-  hazardDetectionUnit.io.rs1ID := IDBarrier.io.outRS1
-  hazardDetectionUnit.io.rs2ID := IDBarrier.io.outRS2
-  hazardDetectionUnit.io.rdEX := EXBarrier.io.outRD
-  hazardDetectionUnit.io.memToRegEX := true.B // Assume load in EX
-  hazardDetectionUnit.io.regWriteEX := true.B
-  hazardDetectionUnit.io.regWriteMEM := true.B
+  /* 
+    TODO: Connect the I/Os of the forwarding unit 
+  */
 
-  // Stall Logic
-  when(hazardDetectionUnit.io.stall) {
-  IFBarrier.io.inInstr := 0.U // NOP
-  IDBarrier.io.inUOP := uopc.invalid
-  IF.io.PC := IF.io.PC // Freeze PC
-}
   // Forwarding Unit Connections
   forwardingUnit.io.rs1ID := IDBarrier.io.outRS1
   forwardingUnit.io.rs2ID := IDBarrier.io.outRS2
   forwardingUnit.io.rdEX := EXBarrier.io.outRD
   forwardingUnit.io.rdMEM := MEMBarrier.io.outRD
-  forwardingUnit.io.regWriteEX := true.B
-  forwardingUnit.io.regWriteMEM := true.B
 
   // Forwarding signals
   val forwardA = forwardingUnit.io.forwardA
   val forwardB = forwardingUnit.io.forwardB
+  printf("[FWD] forwardA = %x\n", forwardingUnit.io.forwardA)
+  printf("[FWD] forwardB = %x\n", forwardingUnit.io.forwardB)
+  
+  // // Hazard Detection Unit Connections
+  // hazardDetectionUnit.io.rs1ID := IDBarrier.io.outRS1
+  // hazardDetectionUnit.io.rs2ID := IDBarrier.io.outRS2
+  // hazardDetectionUnit.io.rdEX := EXBarrier.io.outRD
+  // hazardDetectionUnit.io.rdMEM := MEMBarrier.io.outRD
 
-  // IDBarrier -> EX
-  EX.io.uop := IDBarrier.io.outUOP
+  //   // Stall Logic
+  //   when(hazardDetectionUnit.io.stall) {
+  //   IFBarrier.io.inInstr := 0.U // NOP
+  //   IDBarrier.io.inUOP := uopc.invalid
+  //   IF.io.PC := IF.io.PC // Freeze PC
+  // }
+
+  /* 
+    TODO: Implement MUXes to select which values are sent to the EX stage as operands
+  */
+
+  // EX.io.operandA := IDBarrier.io.inOperandA // just there to make empty project buildable
+  // EX.io.operandB := IDBarrier.io.inOperandB // just there to make empty project buildable
+
   EX.io.operandA := MuxLookup(forwardA, IDBarrier.io.outOperandA, Seq(
     "b10".U -> EXBarrier.io.outAluResult,  // Forward from EX stage
     "b01".U -> MEMBarrier.io.outAluResult // Forward from MEM stage
@@ -604,27 +653,29 @@ class HazardDetectionRV32Icore(BinaryFile: String) extends Module {
   EX.io.operandB := MuxLookup(forwardB, IDBarrier.io.outOperandB, Seq(
     "b10".U -> EXBarrier.io.outAluResult,  // Forward from EX stage
     "b01".U -> MEMBarrier.io.outAluResult // Forward from MEM stage
-  ))
+  ))  
 
-  EX.io.operandA := 0.U // just there to make empty project buildable
-  EX.io.operandB := 0.U // just there to make empty project buildable
+  // IDBarrier --> EX
+  EX.io.uop := IDBarrier.io.outUOP  
 
-  // EX -> EXBarrier
+  // EX --> EXBarrier
   EXBarrier.io.inRD := IDBarrier.io.outRD
   EXBarrier.io.inAluResult := EX.io.aluResult
+  printf("[EX] aluResult = %d\n", EX.io.aluResult)
 
-  // EXBarrier -> MEM
+  // EXBarrier --> MEMBarrier
   MEMBarrier.io.inRD := EXBarrier.io.outRD
   MEMBarrier.io.inAluResult := EXBarrier.io.outAluResult
 
-  // MEM -> WB
+  // MEMBarrier --> WB
   WB.io.rd := MEMBarrier.io.outRD
   WB.io.aluResult := MEMBarrier.io.outAluResult
   WB.io.regFileReq <> regFile.io.req_3
 
-  // WB -> WBBarrier
+  // WB --> WBBarrier
   WBBarrier.io.inCheckRes := WB.io.check_res
 
   // Output result
   io.check_res := WBBarrier.io.outCheckRes
+  printf("-------------------------------------------------------------------------\n")
 }

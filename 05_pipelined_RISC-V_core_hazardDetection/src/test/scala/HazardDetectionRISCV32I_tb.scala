@@ -19,7 +19,6 @@ class HazardDetectionRISCV32ITest extends AnyFlatSpec with ChiselScalatestTester
       dut.clock.setTimeout(0)
 
       dut.clock.step(5)             // it is important to wait until the first instruction travelled through the entire pipeline
-
       dut.io.result.expect(0.U)     // ADDI x0, x0, 0
       dut.clock.step(1)
       dut.io.result.expect(4.U)     // ADDI x1, x0, 4
