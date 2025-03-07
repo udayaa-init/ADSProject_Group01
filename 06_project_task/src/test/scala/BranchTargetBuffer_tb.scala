@@ -17,6 +17,7 @@ class BranchTargetBufferTest extends AnyFlatSpec with ChiselScalatestTester {
   
       dut.io.valid.expect(false.B)
       dut.io.target.expect(0x1004.U)
+      dut.io.predictedTaken.expect(false.B)
     }
   }
 }

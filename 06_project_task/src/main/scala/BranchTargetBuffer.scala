@@ -70,12 +70,32 @@ class BranchTargetBuffer () extends Module {
   
   val index = io.PC(4,2)  
   val tag = io.PC(31,5)  
-  val target = io.PC + 4.U  // Assuming branch not taken
-
+  
   printf("index  = %d\n",io.PC(4,2))
   printf("tag  = %d\n",io.PC(31,5))
 
+  // Fetching the BTB entry based on the index
+  val set = cache(index)
+  
+  // Logic to check for a hit in the cache (valid and tag comparison)
+  val hit_vector = set.map { way =>
+    // Check for valid entry and matching tag
+    way.valid && (way.tag === tag)  
+  }
+  
+  // Cache hit if any way is valid and matches the tag
+  val valid = hit_vector.reduce(_ || _)  
+
+  // set the taget from the cache, if not set PC + 4
+  val target = Mux(hit_vector(0), set(0).target, Mux(hit_vector(1), set(1).target, io.PC + 4.U))
+
+  // Check for cache hit and set prediction state (taken or not)
+  val predictedTaken = Mux(hit_vector(0), set(0).predictor(1), Mux(hit_vector(1), set(1).predictor(1), false.B))
+  
+
   // Assign values to output
   io.target := target
+  io.valid :=valid
+  io.predictedTaken := predictedTaken
 
 }
