@@ -87,6 +87,24 @@ class BranchTargetBuffer () extends Module {
     way.valid && (way.tag === tag)  
   }
   
+
+  
+
+  
+  //printf("predictedTaken  = %d\n",predictedTaken)
+
+  printf("//// Update Cache\n")
+
+
+  // Determine if there's a matching entry
+  val IFway0 = cache(index)(0)
+  val IFway1 = cache(index)(1)
+
+  val IFhit0 = IFway0.valid && (IFway0.tag === tag)
+  val IFhit1 = IFway1.valid && (IFway1.tag === tag)
+
+  val IFupdateWay = Mux(IFhit0, 0.U, Mux(IFhit1, 1.U, Mux(lru(index), 1.U, 0.U)))
+
   // Cache hit if any way is valid and matches the tag
   val valid = hit_vector.reduce(_ || _)  
 
@@ -95,9 +113,21 @@ class BranchTargetBuffer () extends Module {
 
   // Check for cache hit and set prediction state (taken or not)
   val predictedTaken = Mux(hit_vector(0), set(0).predictor(1), Mux(hit_vector(1), set(1).predictor(1), false.B))
-  printf("predictedTaken  = %d\n",predictedTaken)
 
-  printf("//// Update Cache\n")
+  when(valid){
+    //Update the LRU here
+    val Ind  = io.PC(4,2)
+    lru(Ind) := !IFupdateWay 
+
+  }.otherwise{
+    // Make an entry here
+    cache(index)(IFupdateWay).valid := false.B
+    cache(index)(IFupdateWay).tag := tag
+    cache(index)(IFupdateWay).target := io.PC + 4.U // if no entry in the BTB when fecting we set target to PC+4
+    // We are starting at Weak Not Taken, so the next state is set accordingly
+    cache(index)(IFupdateWay).predictor := 1.U
+  }
+
   // BTB Update Logic (Occurs 2 cycles later at the EX stage)
   when(io.update) {
     val updateIndex = io.updatePC(4, 2)
@@ -152,6 +182,8 @@ class BranchTargetBuffer () extends Module {
     }.otherwise {
       // Update predictor FSM for existing entry
       val oldState = cache(updateIndex)(updateWay).predictor
+      cache(updateIndex)(updateWay).valid := true.B
+      cache(updateIndex)(updateWay).target := io.updateTarget
       printf("current prediction  = %d\n",oldState)
       
       cache(updateIndex)(updateWay).predictor := Mux(io.mispredicted,
@@ -164,7 +196,7 @@ class BranchTargetBuffer () extends Module {
     
     // since this way was just updated the other way is lru
     // Update LRU bit
-    lru(updateIndex) := !updateWay 
+    lru(updateIndex) := !updateWay  // happens for the latest updatePC if collision with the IF reading
   }
 
   // Assign values to output

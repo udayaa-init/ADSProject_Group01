@@ -114,7 +114,7 @@ class BranchTargetBufferTest extends AnyFlatSpec with ChiselScalatestTester {
       dut.io.predictedTaken.expect(false.B)
 
       // Add another new Entry to the same set
-      dut.io.PC.poke(0x1000.U)
+      dut.io.PC.poke(0x1000.U) // latest used entry is 2000 for writing. So this 1000 should be evicted when updating for 3000
 
       dut.io.update.poke(true.B)
       dut.io.updatePC.poke(0x3000.U)
@@ -126,6 +126,44 @@ class BranchTargetBufferTest extends AnyFlatSpec with ChiselScalatestTester {
       dut.io.valid.expect(false.B)
       dut.io.target.expect(0x1004.U) // Default PC + 4 
       dut.io.predictedTaken.expect(false.B)
+
+//1000 , 3000-<
+    //////////// Cache Replacement 22
+
+      // Add a new Entry to the same set
+      dut.io.PC.poke(0x2000.U)
+
+      dut.io.update.poke(true.B)
+      dut.io.updatePC.poke(0x1000.U)
+      dut.io.updateTarget.poke(0x1F80.U)
+      dut.io.mispredicted.poke(true.B)
+      
+      dut.clock.step(1)
+      dut.io.valid.expect(false.B)  // 2000 is not htere in cache so false
+      //dut.io.target.expect(0x1A80.U)
+      //dut.io.predictedTaken.expect(true.B)
+
+      // Add another new Entry to the same set
+      dut.io.PC.poke(0x3000.U) 
+
+      dut.io.update.poke(true.B)
+      dut.io.updatePC.poke(0x2000.U)
+      dut.io.updateTarget.poke(0x1180.U) // updating the target for the 2000 from EX stage just for testing.
+      dut.io.mispredicted.poke(true.B)
+      
+      dut.clock.step(1)  
+      dut.io.valid.expect(false.B)
+
+      dut.io.PC.poke(0x2000.U) 
+
+      dut.io.update.poke(false.B)
+      dut.io.updatePC.poke(0x1000.U)
+      dut.io.updateTarget.poke(0x1180.U)
+      dut.io.mispredicted.poke(true.B)
+      
+      // Expect a miss
+      dut.clock.step(1)  
+      dut.io.valid.expect(true.B)
 
     }
   }
