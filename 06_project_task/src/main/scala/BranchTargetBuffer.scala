@@ -121,7 +121,7 @@ class BranchTargetBuffer () extends Module {
 
   }.otherwise{
     // Make an entry here
-    cache(index)(IFupdateWay).valid := false.B
+    cache(index)(IFupdateWay).valid := true.B
     cache(index)(IFupdateWay).tag := tag
     cache(index)(IFupdateWay).target := io.PC + 4.U // if no entry in the BTB when fecting we set target to PC+4
     // We are starting at Weak Not Taken, so the next state is set accordingly
